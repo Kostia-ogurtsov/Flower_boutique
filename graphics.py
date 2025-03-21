@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.express as px
 
 
-# Данные для DataFrame
+# Данные для DataFrame (получили из файла calculations.py)
 data = {
     "Район": [
         "Пушкино", "Ногинск", "Подольск", "Балашиха", "Серпухов", "Долгопрудный",
