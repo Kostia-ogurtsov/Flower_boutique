@@ -12,23 +12,29 @@ def driver_init():
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 
-def sort_items(driver, url):
+def sort_items(driver, url, price_top):
     driver.get(url)
     time.sleep(2)
     input_field = driver.find_element(By.CSS_SELECTOR, 'input[data-marker="price-to/input"]')
 
     input_field.clear()
-    for digit in "1000":
+    for digit in price_top:
         input_field.send_keys(digit)
         time.sleep(0.2)
 
     current_value = input_field.get_attribute("value").replace(" ", "")
-    expected_value = "1000"
-    assert current_value == expected_value, f"Ожидалось значение {expected_value}, но получено {current_value}"
+    assert current_value == price_top, f"Ожидалось значение {price_top}, но получено {current_value}"
 
-    checkbox = driver.find_element(By.CSS_SELECTOR, '[data-marker="filters/byTitle/byTitle"]')
+    checkbox = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-marker="filters/byTitle/byTitle"]'))
+    )
+
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
+    time.sleep(1)
+
     actions = ActionChains(driver)
     actions.move_to_element(checkbox).click().perform()
+    time.sleep(1)
 
     aria_checked = checkbox.get_attribute("aria-checked")
     assert aria_checked == "true", f"Ожидалось значение 'true', но получено {aria_checked}"
@@ -53,31 +59,43 @@ def get_prices(driver, url):
     else:
         page_count = ads_count // 50
 
+    d = {}
     for page in range(1, page_count + 1):
-        
-        if driver.session_id is None:
-            print("Перезапуск сессии браузера")
-            driver = webdriver.Chrome()
-            driver.get(f"{url}&p={page}")
-        else:
-            driver.get(f"{url}&p={page}")
+        driver.get(f"{url}&p={page}")
         driver.implicitly_wait(3)    
-        price_elements = driver.find_elements(By.CSS_SELECTOR, 'meta[itemprop="price"]')
-        prices = [price_elements[i].get_attribute("content") for i in range(ads_count)]
-        print(f"Page: {page}, Цены: {prices}")
 
-url = 'https://www.avito.ru/moskva?q=роза+охара'
+        items = driver.find_elements(By.CSS_SELECTOR, 'div[data-marker="item"]')
+        for item in items:
+            price = item.find_element(By.CSS_SELECTOR, 'meta[itemprop="price"]').get_attribute("content")
+            link = item.find_element(By.CSS_SELECTOR, "a[itemprop='url']").get_attribute("href")
+            d[int(price)] = link
+    return d
+
+def get_supplier(d, q, price_bottom):
+    d = {key: value for key, value in d.items() if key > price_bottom}
+    sorted_d = dict(sorted(d.items()))
+    sorted_l = list(sorted_d.items())  
+    if q < len(sorted_l):
+        key, value = sorted_l[q]
+        print(f"Поставщик, который предлагает минимальную цену {key}, доступен по ссылке {value}")
+
+
+url = ['https://www.avito.ru/moskva?q=роза+охара',
+       'https://www.avito.ru/moskva?q=роза+джульетта',
+       'https://www.avito.ru/moskva?q=ранункулюс+цветы',
+       'https://www.avito.ru/moskva?q=эвкалипт+стабилизированный',
+       'https://www.avito.ru/moskva?q=тюльпан+красный+оптом',
+       'https://www.avito.ru/moskva?q=тюльпан+пионовидный+оптом',
+       'https://www.avito.ru/moskva?q=пион+цветы+оптом',
+       'https://www.avito.ru/moskva?q=ирисы+цветы']
+
 driver = driver_init()
-cur_url = sort_items(driver, url)
-get_prices(driver, cur_url)
+
+#надо взять average prices с другого сайта и испоьзовать для каждого цветка свою
+for i in range(len(url)):
+    cur_url = sort_items(driver, url[i], "150")
+    d = get_prices(driver, cur_url)
+    for j in range(5):
+        get_supplier(d, j, 40)
+
 driver.quit()
-
-url = 'https://www.avito.ru/moskva?q=роза+бомбастик'
-driver = driver_init()
-cur_url = sort_items(driver, url)
-get_prices(driver, cur_url)
-
-url = 'https://www.avito.ru/moskva?q=роза+джульетта'
-driver = driver_init()
-cur_url = sort_items(driver, url)
-get_prices(driver, cur_url)
