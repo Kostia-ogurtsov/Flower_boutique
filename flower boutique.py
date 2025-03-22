@@ -71,16 +71,32 @@ def get_prices(driver, url):
             d[int(price)] = link
     return d
 
-def get_supplier(d, q, price_bottom):
+results = []
+
+def get_supplier(d, price_bottom):
+    global results
+
     d = {key: value for key, value in d.items() if key > price_bottom}
     sorted_d = dict(sorted(d.items()))
-    sorted_l = list(sorted_d.items())  
-    if q < len(sorted_l):
-        key, value = sorted_l[q]
-        print(f"Поставщик, который предлагает минимальную цену {key}, доступен по ссылке {value}")
+    sorted_l = list(sorted_d.items())
 
+    cnt = 0
+    f = 0
+    while f == 0:
+        if cnt >= len(sorted_l):
+            results.append([0, ""])
+            f = 1
+        else:
+            key, value = sorted_l[cnt]
+            if value.startswith("https://www.avito.ru/moskva/"):
+                results.append([int(key), value])
+                f = 1
+            else:
+                cnt += 1
 
-url = ['https://www.avito.ru/moskva?q=роза+охара',
+names = ['Роза Охара', 'Роза Джульетта', 'Ранункулюс', 'Эвкалипт стабилизированный', 'Тюльпан красный', 'Тюльпан пионовидный розовый', 'Пион Гардения', 'Ирис синий']
+
+urls = ['https://www.avito.ru/moskva?q=роза+охара',
        'https://www.avito.ru/moskva?q=роза+джульетта',
        'https://www.avito.ru/moskva?q=ранункулюс+цветы',
        'https://www.avito.ru/moskva?q=эвкалипт+стабилизированный',
@@ -89,13 +105,33 @@ url = ['https://www.avito.ru/moskva?q=роза+охара',
        'https://www.avito.ru/moskva?q=пион+цветы+оптом',
        'https://www.avito.ru/moskva?q=ирисы+цветы']
 
-driver = driver_init()
+urls_dop = ['https://megacvet24.ru/rozy/roza-pink-ohara-50.html',
+        'https://megacvet24.ru/rozy/roza-dzhuletta-50.html',
+        'https://megacvet24.ru/cvety-optom/ranunkulyus-hanoy-optom.html',
+        'https://megacvet24.ru/cvety-optom/evkalipt-cineriya-stabilizirovannyy-opt.html',
+        'https://megacvet24.ru/cvety-optom/tyulpan-krasnyy-optom.html',
+        'https://megacvet24.ru/tsvety/tyulpany/tyulpan-pionovidnyy-rozovyy.html',
+        'https://megacvet24.ru/cvety-optom/pion-gardeniya-optom.html',
+        'https://megacvet24.ru/cvety-optom/iris-siniy-optom.html']
 
+
+average_prices = ['449', '399', '650', '450', '80', '199', '1500', '70']
+
+driver = driver_init()
 #надо взять average prices с другого сайта и испоьзовать для каждого цветка свою
-for i in range(len(url)):
-    cur_url = sort_items(driver, url[i], "150")
+for i in range(len(urls)):
+    cur_url = sort_items(driver, urls[i], str(int(average_prices[i]) * 2))
     d = get_prices(driver, cur_url)
-    for j in range(5):
-        get_supplier(d, j, 40)
+    get_supplier(d, int(average_prices[i]) // 2)
 
 driver.quit()
+
+results_dict = dict(zip(names, results))
+
+i = 0
+for key, value in results_dict.items():
+    if value[0] == 0:
+        results_dict[key] = [int(average_prices[i]), urls_dop[i]]
+    i += 1
+
+print(results_dict)
